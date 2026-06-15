@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM — L'Heure Civique · Puy-de-Dôme</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --cyan:#00AEEF; --navy:#1B2A6B; --yellow:#FFD93D; --magenta:#E91E63;
+  --green:#6FBE3F; --orange:#F77F00; --violet:#8E44AD; --coral:#E63946;
+  --gray-50:#F8F9FC; --gray-100:#F0F2F8; --gray-200:#E2E6F0;
+  --gray-400:#9AA3BF; --gray-600:#5B6380;
+  --sidebar-w:240px; --topbar-h:60px; --radius:12px;
+  --shadow:0 2px 12px rgba(27,42,107,.08);
+  --shadow-lg:0 8px 32px rgba(27,42,107,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Montserrat',sans-serif;background:var(--gray-50);color:var(--navy);overflow-x:hidden}
+button{font-family:inherit;cursor:pointer;border:none}
+input,select,textarea{font-family:inherit}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:9999}
+.login-card{background:white;border-radius:20px;padding:48px 40px;width:400px;box-shadow:var(--shadow-lg);text-align:center}
+.login-logo{margin-bottom:24px}
+.login-subtitle{font-size:12px;font-weight:600;color:var(--gray-400);letter-spacing:.12em;text-transform:uppercase;margin-bottom:28px}
+.login-field{width:100%;padding:13px 16px;border:2px solid var(--gray-200);border-radius:8px;font-size:14px;color:var(--navy);outline:none;transition:border-color .2s;margin-bottom:12px;background:white;display:block}
+.login-field:focus{border-color:var(--cyan)}
+.login-btn{width:100%;padding:14px;background:var(--cyan);color:white;font-size:14px;font-weight:700;border-radius:8px;letter-spacing:.06em;text-transform:uppercase;transition:background .2s;margin-top:4px;cursor:pointer}
+.login-btn:hover{background:#009cd4}
+.login-error{color:var(--coral);font-size:13px;margin-top:10px;min-height:18px;font-weight:500}
+.login-hint{margin-top:14px;font-size:11px;color:#bbb}
+.login-reset{background:none;border:none;color:#bbb;font-size:10px;cursor:pointer;text-decoration:underline;font-family:inherit;margin-top:6px}
+
+/* LAYOUT */
+#app{display:none;height:100vh;overflow:hidden}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:var(--navy);display:flex;flex-direction:column;z-index:100}
+.sidebar-logo{padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sidebar-dept{font-size:10px;font-weight:600;color:var(--yellow);letter-spacing:.1em;text-transform:uppercase;margin-top:6px}
+.sidebar-nav{flex:1;padding:12px 0;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 20px;color:rgba(255,255,255,.6);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;position:relative}
+.nav-item:hover{color:white;background:rgba(255,255,255,.06)}
+.nav-item.active{color:white;background:rgba(0,174,239,.2)}
+.nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--cyan);border-radius:0 2px 2px 0}
+.nav-icon{font-size:16px;width:20px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--coral);color:white;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px}
+.sidebar-user{padding:14px 20px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;flex-shrink:0}
+.user-name{font-size:12px;font-weight:600;color:white}
+.user-role{font-size:11px;color:rgba(255,255,255,.5)}
+.logout-btn{margin-left:auto;color:rgba(255,255,255,.4);font-size:13px;cursor:pointer}
+.logout-btn:hover{color:white}
+
+/* TOPBAR */
+.topbar{position:fixed;top:0;left:var(--sidebar-w);right:0;height:var(--topbar-h);background:white;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;gap:12px;padding:0 24px;z-index:90}
+.topbar-search{flex:1;max-width:480px;position:relative}
+.topbar-search input{width:100%;padding:8px 16px 8px 36px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;color:var(--navy);outline:none;background:var(--gray-50);transition:border-color .2s}
+.topbar-search input:focus{border-color:var(--cyan);background:white}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--gray-400);font-size:14px}
+.search-results{position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border-radius:10px;box-shadow:var(--shadow-lg);border:1px solid var(--gray-200);max-height:320px;overflow-y:auto;z-index:200}
+.search-result-item{padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--gray-100);transition:background .1s}
+.search-result-item:hover{background:var(--gray-50)}
+.search-result-item:last-child{border-bottom:none}
+.sr-name{font-size:13px;font-weight:600}
+.sr-detail{font-size:11px;color:var(--gray-400);margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.notif-btn{position:relative;width:36px;height:36px;border-radius:8px;background:var(--gray-50);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;font-size:16px}
+.notif-btn:hover{background:var(--gray-100)}
+.notif-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;background:var(--coral);border-radius:50%;border:2px solid white}
+.topbar-date{font-size:12px;color:var(--gray-400);font-weight:500}
+
+/* MAIN */
+.main{margin-left:var(--sidebar-w);padding-top:var(--topbar-h);height:100vh;overflow-y:auto}
+.page{display:none;padding:28px 28px 40px;animation:fadeIn .2s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.page-header{margin-bottom:24px}
+.page-title{font-size:22px;font-weight:800}
+.page-subtitle{font-size:13px;color:var(--gray-400);margin-top:4px;font-weight:500}
+
+/* CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:white;border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);border:1px solid var(--gray-100);transition:box-shadow .2s}
+.stat-card:hover{box-shadow:var(--shadow-lg)}
+.stat-label{font-size:11px;font-weight:600;color:var(--gray-400);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+.stat-value{font-size:28px;font-weight:800;line-height:1}
+.stat-sub{font-size:12px;color:var(--gray-400);margin-top:6px}
+.stat-bar{margin-top:10px;height:4px;background:var(--gray-100);border-radius:2px}
+.stat-bar-fill{height:100%;border-radius:2px;background:var(--cyan);transition:width .6s ease}
+
+/* CHARTS */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:white;border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border:1px solid var(--gray-100)}
+.chart-title{font-size:13px;font-weight:700;margin-bottom:16px}
+.chart-wrap{position:relative;height:200px}
+
+/* TABLE */
+.table-card{background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--gray-100);overflow:hidden}
+.table-toolbar{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--gray-100);flex-wrap:wrap}
+.table-search{position:relative;flex:1;max-width:320px}
+.table-search input{width:100%;padding:8px 12px 8px 32px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;outline:none;transition:border-color .2s}
+.table-search input:focus{border-color:var(--cyan)}
+.si{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--gray-400);font-size:13px}
+.filter-select{padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;color:var(--navy);outline:none;background:white;cursor:pointer;font-weight:500}
+.filter-select:focus{border-color:var(--cyan)}
+.btn-primary{padding:9px 18px;background:var(--cyan);color:white;font-size:13px;font-weight:700;border-radius:8px;transition:background .15s;letter-spacing:.04em}
+.btn-primary:hover{background:#009cd4}
+.btn-secondary{padding:9px 18px;background:var(--gray-100);color:var(--navy);font-size:13px;font-weight:600;border-radius:8px;transition:background .15s}
+.btn-secondary:hover{background:var(--gray-200)}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{padding:11px 14px;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.08em;text-align:left;background:var(--gray-50);border-bottom:1px solid var(--gray-200);cursor:pointer;user-select:none;white-space:nowrap}
+thead th:hover{color:var(--navy)}
+tbody tr{border-bottom:1px solid var(--gray-100);transition:background .1s;cursor:pointer}
+tbody tr:hover{background:var(--gray-50)}
+tbody tr:last-child{border-bottom:none}
+td{padding:11px 14px;font-size:13px;vertical-align:middle}
+td.fw{font-weight:600}
+td.muted{color:var(--gray-600)}
+.table-pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-top:1px solid var(--gray-100)}
+.pagination-info{color:var(--gray-400);font-size:12px}
+.pagination-btns{display:flex;gap:4px}
+.page-btn{width:32px;height:32px;border-radius:6px;font-size:13px;font-weight:600;background:var(--gray-100);color:var(--navy);transition:all .15s;border:none;cursor:pointer}
+.page-btn:hover{background:var(--cyan);color:white}
+.page-btn.active{background:var(--cyan);color:white}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;cursor:pointer;transition:opacity .15s}
+.badge:hover{opacity:.8}
+.badge-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.s-contacter{background:#F2F2F2;color:#666}.s-contacter .badge-dot{background:#999}
+.s-mail{background:#E3F2FD;color:#1565C0}.s-mail .badge-dot{background:#1565C0}
+.s-relance1{background:#FFF9C4;color:#827717}.s-relance1 .badge-dot{background:#F9A825}
+.s-relance2{background:#FFF3E0;color:#E65100}.s-relance2 .badge-dot{background:#F77F00}
+.s-rdv{background:#F3E5F5;color:#6A1B9A}.s-rdv .badge-dot{background:#8E44AD}
+.s-attente{background:#FFEBEE;color:#C62828}.s-attente .badge-dot{background:#E63946}
+.s-refus{background:#FFEBEE;color:#B71C1C}.s-refus .badge-dot{background:#E63946}
+.s-convention{background:#E8F5E9;color:#1B5E20}.s-convention .badge-dot{background:#6FBE3F}
+.e-presentation{background:#E3F2FD;color:#0D47A1}
+.e-interessee{background:#E8F5E9;color:#1B5E20}
+.e-convention{background:#E8F5E9;color:#2E7D32}
+.e-lancement{background:#FFF9C4;color:#F57F17}
+.e-reunion{background:#F3E5F5;color:#4A148C}
+.e-lancee{background:#E8F5E9;color:#1B5E20;font-weight:700}
+.e-suivi-prog{background:#E3F2FD;color:#1565C0}
+.e-suivi-ok{background:#F1F8E9;color:#33691E}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(27,42,107,.5);display:none;align-items:flex-start;justify-content:flex-end;z-index:500;backdrop-filter:blur(2px)}
+.modal-overlay.open{display:flex}
+.modal-panel{width:680px;height:100vh;background:white;overflow-y:auto;box-shadow:var(--shadow-lg);animation:slideIn .25s ease}
+@keyframes slideIn{from{transform:translateX(60px);opacity:0}to{transform:none;opacity:1}}
+.modal-header{position:sticky;top:0;background:white;padding:20px 24px 16px;border-bottom:1px solid var(--gray-200);z-index:10;display:flex;align-items:center;gap:12px}
+.modal-close{width:32px;height:32px;border-radius:8px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:background .15s;margin-left:auto;border:none}
+.modal-close:hover{background:var(--gray-200)}
+.modal-commune-name{font-size:18px;font-weight:800}
+.modal-body{padding:24px}
+.modal-section{margin-bottom:28px}
+.modal-section-title{font-size:11px;font-weight:700;color:var(--gray-400);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--gray-100)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group.full{grid-column:1/-1}
+.form-label{font-size:11px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em}
+.form-input,.form-select,.form-textarea{padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:13px;color:var(--navy);outline:none;transition:border-color .2s;font-family:inherit;background:white}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--cyan)}
+.form-textarea{resize:vertical;min-height:80px}
+
+/* HISTORY */
+.history-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--gray-100)}
+.history-item:last-child{border-bottom:none}
+.history-dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);flex-shrink:0;margin-top:5px}
+.history-time{font-size:11px;color:var(--gray-400)}
+.history-text{font-size:13px}
+.history-user{font-size:11px;color:var(--cyan);font-weight:600}
+
+/* CALENDAR */
+.calendar-wrap{background:white;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--gray-100);overflow:hidden}
+.cal-header{display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid var(--gray-200)}
+.cal-title{font-size:16px;font-weight:700;flex:1;text-align:center}
+.cal-nav{width:32px;height:32px;border-radius:8px;background:var(--gray-100);cursor:pointer;font-size:14px;border:none}
+.cal-nav:hover{background:var(--gray-200)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.cal-day-header{padding:10px;text-align:center;font-size:11px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.06em;background:var(--gray-50);border-bottom:1px solid var(--gray-200)}
+.cal-day{min-height:80px;padding:6px;border-right:1px solid var(--gray-100);border-bottom:1px solid var(--gray-100);cursor:pointer;transition:background .1s}
+.cal-day:hover{background:var(--gray-50)}
+.cal-day.other-month .cal-day-num{color:var(--gray-200)}
+.cal-day.today .cal-day-num{background:var(--cyan);color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700}
+.cal-day-num{font-size:13px;font-weight:600;margin-bottom:4px}
+.cal-event{font-size:10px;padding:2px 5px;border-radius:3px;margin-bottom:2px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.cal-event.rdv{background:#F3E5F5;color:#6A1B9A}
+.cal-event.relance{background:#FFF9C4;color:#827717}
+.cal-event.lancement{background:#E8F5E9;color:#1B5E20}
+
+/* NOTIFICATIONS */
+.notif-panel{position:fixed;top:var(--topbar-h);right:0;width:380px;height:calc(100vh - var(--topbar-h));background:white;box-shadow:var(--shadow-lg);border-left:1px solid var(--gray-200);z-index:200;display:none;overflow-y:auto;animation:slideIn .2s ease}
+.notif-panel.open{display:block}
+.notif-panel-header{padding:20px;border-bottom:1px solid var(--gray-200)}
+.notif-panel-title{font-size:15px;font-weight:700}
+.notif-item{display:flex;gap:12px;padding:14px 20px;border-bottom:1px solid var(--gray-100);transition:background .1s;cursor:pointer}
+.notif-item:hover{background:var(--gray-50)}
+.notif-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.notif-urgent .notif-icon{background:#FFEBEE}
+.notif-warning .notif-icon{background:#FFF9C4}
+.notif-info .notif-icon{background:#E3F2FD}
+.notif-title{font-size:13px;font-weight:600}
+.notif-desc{font-size:12px;color:var(--gray-400);margin-top:2px}
+
+/* MAP */
+#map-container{height:calc(100vh - var(--topbar-h) - 200px);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.map-legend{display:flex;gap:8px;flex-wrap:wrap;background:white;padding:12px 16px;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--gray-100);margin-bottom:16px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500}
+.legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+
+/* SETTINGS */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.settings-card{background:white;border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);border:1px solid var(--gray-100)}
+.settings-card-title{font-size:14px;font-weight:700;margin-bottom:16px}
+.user-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--gray-100)}
+.user-item:last-child{border-bottom:none}
+
+/* STATUS MENU */
+.status-menu{position:fixed;background:white;border-radius:10px;box-shadow:var(--shadow-lg);border:1px solid var(--gray-200);z-index:300;min-width:200px;animation:fadeIn .15s ease}
+.status-menu-item{padding:9px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .1s;font-size:13px}
+.status-menu-item:hover{background:var(--gray-50)}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:white;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);z-index:9998;display:none;align-items:center;gap:8px}
+.toast.show{display:flex;animation:fadeIn .3s ease}
+.toast-success{background:#2E7D32}
+.toast-error{background:var(--coral)}
+
+/* MISC */
+.stats-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chart-card-lg{background:white;border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);border:1px solid var(--gray-100)}
+.chart-wrap-lg{position:relative;height:280px}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--gray-200);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--gray-400)}
+.leaflet-tooltip{font-family:'Montserrat',sans-serif;font-size:12px}
+@media(max-width:1200px){.stats-grid{grid-template-columns:repeat(2,1fr)}.charts-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="data:image/jpeg;base64,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ZccnmAB7y/GptNW6/Rg1LDHUMGGTx4DgPA+I9B95dpFCta0a9J0qkU49DxV1WVV1lJ8T3yUrqzTVZp+dgleJ6aX6XM1uOf3JHcVxYTGJWGZjnxhw42tdwkjvAPcVfdyoaW40UlHWQtlhkGHNPwjwKrW+bf3SnmLrUW1sBPmtc8MkaPTnAPrB9xfN9b7L1rap3tnFyh05tfLxX18zsNM1ynWh3dxLEuvJP8M88WuaK209LR2S0ugpY3gyiQjicO8DB7T4kqeTQ2zUVjMdRDFWUFZGCWPGQ5p+Aj9IIVaUOgL/ADyAVDYKRne58gcR6g3Of0hWZYLXT2a1xUFMXuYzJLnHm5x5k+jn3LouzVXVXOXrUOGGFjbhw14JbbGm1mFioruJZl475z8WVxctj7DNNx0F2uFGwknq3BsgA8ASAcesldvRe1untN17LiX1FxrYjmKSoxwxHxa0DGfSc47sKdou2leV5R4XLY5tW9JPKRBtwdsrLrW7w3O511xglhgEDW072BuA5zsniaTnzj39yjfzgdJ/fW+frYv3at1F4KclsmUq2jWNebqVKabfNlRfOB0n99b5+ti/drr6O2g09pfUlLfaG4XWWopePgZNJGWHiY5hzhgPY496sZFl1JPxI09EsKc1OFJJrdfFBERQNqEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREB//Z" alt="L'Heure Civique" style="width:150px;display:block;margin:0 auto;">
+    </div>
+    <div class="login-subtitle">CRM · Puy-de-Dôme</div>
+    <input class="login-field" type="text" id="login-user" placeholder="Identifiant" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <input class="login-field" type="password" id="login-pass" placeholder="Mot de passe" autocomplete="new-password">
+    <button class="login-btn" onclick="doLogin()">Connexion</button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-hint">Démo : admin / admin123</div>
+    <button class="login-reset" onclick="resetAuth()">Problème de connexion ? Réinitialiser</button>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <img src="data:image/jpeg;base64,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ZccnmAB7y/GptNW6/Rg1LDHUMGGTx4DgPA+I9B95dpFCta0a9J0qkU49DxV1WVV1lJ8T3yUrqzTVZp+dgleJ6aX6XM1uOf3JHcVxYTGJWGZjnxhw42tdwkjvAPcVfdyoaW40UlHWQtlhkGHNPwjwKrW+bf3SnmLrUW1sBPmtc8MkaPTnAPrB9xfN9b7L1rap3tnFyh05tfLxX18zsNM1ynWh3dxLEuvJP8M88WuaK209LR2S0ugpY3gyiQjicO8DB7T4kqeTQ2zUVjMdRDFWUFZGCWPGQ5p+Aj9IIVaUOgL/ADyAVDYKRne58gcR6g3Of0hWZYLXT2a1xUFMXuYzJLnHm5x5k+jn3LouzVXVXOXrUOGGFjbhw14JbbGm1mFioruJZl475z8WVxctj7DNNx0F2uFGwknq3BsgA8ASAcesldvRe1untN17LiX1FxrYjmKSoxwxHxa0DGfSc47sKdou2leV5R4XLY5tW9JPKRBtwdsrLrW7w3O511xglhgEDW072BuA5zsniaTnzj39yjfzgdJ/fW+frYv3at1F4KclsmUq2jWNebqVKabfNlRfOB0n99b5+ti/drr6O2g09pfUlLfaG4XWWopePgZNJGWHiY5hzhgPY496sZFl1JPxI09EsKc1OFJJrdfFBERQNqEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREB//Z" alt="L'Heure Civique" style="width:120px;display:block;border-radius:6px;">
+      <div class="sidebar-dept">Puy-de-Dôme · 63</div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard"><span class="nav-icon">🏠</span> Tableau de bord</div>
+      <div class="nav-item" onclick="showPage('map')" id="nav-map"><span class="nav-icon">🗺️</span> Carte du déploiement</div>
+      <div class="nav-item" onclick="showPage('communes')" id="nav-communes"><span class="nav-icon">🏘️</span> Communes</div>
+      <div class="nav-item" onclick="showPage('agenda')" id="nav-agenda"><span class="nav-icon">📅</span> Agenda</div>
+      <div class="nav-item" onclick="showPage('notifications')" id="nav-notifications"><span class="nav-icon">🔔</span> Notifications<span class="nav-badge" id="notif-count" style="display:none">0</span></div>
+      <div class="nav-item" onclick="showPage('stats')" id="nav-stats"><span class="nav-icon">📊</span> Statistiques</div>
+      <div class="nav-item" onclick="showPage('settings')" id="nav-settings"><span class="nav-icon">⚙️</span> Paramètres</div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div><div class="user-name" id="user-name-display"></div><div class="user-role" id="user-role-display"></div></div>
+      <span class="logout-btn" onclick="doLogout()" title="Déconnexion">⏏</span>
+    </div>
+  </nav>
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-search">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Rechercher une commune, un élu, un contact…" id="global-search" autocomplete="off" oninput="globalSearch(this.value)">
+      <div class="search-results" id="search-results" style="display:none"></div>
+    </div>
+    <div class="topbar-actions">
+      <div class="topbar-date" id="topbar-date"></div>
+      <div class="notif-btn" onclick="toggleNotifPanel()">🔔<div class="notif-dot" id="notif-dot" style="display:none"></div></div>
+    </div>
+  </header>
+
+  <!-- Notif panel -->
+  <div class="notif-panel" id="notif-panel">
+    <div class="notif-panel-header"><div class="notif-panel-title">🔔 Notifications</div></div>
+    <div id="notif-list"></div>
+  </div>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header"><div class="page-title">Tableau de bord</div><div class="page-subtitle">Déploiement L'Heure Civique · Puy-de-Dôme</div></div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-title">Répartition des statuts de contact</div><div class="chart-wrap"><canvas id="chart-statuts"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title">Progression des étapes de lancement</div><div class="chart-wrap"><canvas id="chart-etapes"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- MAP -->
+    <div class="page" id="page-map">
+      <div class="page-header"><div class="page-title">Carte du déploiement</div><div class="page-subtitle">Visualisation géographique · Puy-de-Dôme</div></div>
+      <div class="stats-grid" id="map-stats-grid" style="grid-template-columns:repeat(6,1fr)"></div>
+      <div class="map-legend" id="map-legend"></div>
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <div class="table-search" style="max-width:280px"><span class="si">🔍</span><input type="text" placeholder="Rechercher une commune…" id="map-search" autocomplete="off" oninput="mapSearch(this.value)"></div>
+        <select class="filter-select" id="map-filter-statut" onchange="updateMapFilter()">
+          <option value="">Tous les statuts</option>
+          <option>À contacter</option><option>Mail envoyé</option><option>Relance 1</option><option>Relance 2</option>
+          <option>Rendez-vous programmé</option><option>En attente</option><option>Refus</option><option>Convention signée</option>
+        </select>
+      </div>
+      <div id="map-container"></div>
+    </div>
+
+    <!-- COMMUNES -->
+    <div class="page" id="page-communes">
+      <div class="page-header"><div class="page-title">Communes</div><div class="page-subtitle">463 communes · Puy-de-Dôme</div></div>
+      <div class="table-card">
+        <div class="table-toolbar">
+          <div class="table-search"><span class="si">🔍</span><input type="text" placeholder="Rechercher…" id="crm-search" autocomplete="off" oninput="filterTable()"></div>
+          <select class="filter-select" id="filter-statut" onchange="filterTable()">
+            <option value="">Tous les statuts</option>
+            <option>À contacter</option><option>Mail envoyé</option><option>Relance 1</option><option>Relance 2</option>
+            <option>Rendez-vous programmé</option><option>En attente</option><option>Refus</option><option>Convention signée</option>
+          </select>
+          <select class="filter-select" id="filter-etape" onchange="filterTable()">
+            <option value="">Toutes les étapes</option>
+            <option>Présentation</option><option>Commune intéressée</option><option>Convention signée</option>
+            <option>Lancement programmé</option><option>Réunion habitants</option><option>Heure Civique lancée</option>
+            <option>Suivi programmé</option><option>Suivi effectué</option>
+          </select>
+          <button class="btn-primary" onclick="exportCSV()">📥 Exporter CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table id="crm-table">
+            <thead><tr>
+              <th onclick="sortTable('nom')">Commune ↕</th>
+              <th onclick="sortTable('contact_nom')">Contact ↕</th>
+              <th>Fonction</th><th>Téléphone</th>
+              <th onclick="sortTable('statut')">Statut ↕</th>
+              <th onclick="sortTable('etape')">Étape ↕</th>
+              <th>Référent HC</th>
+              <th onclick="sortTable('dernier_echange')">Dernier échange ↕</th>
+              <th onclick="sortTable('prochaine_relance')">Prochaine relance ↕</th>
+            </tr></thead>
+            <tbody id="crm-tbody"></tbody>
+          </table>
+        </div>
+        <div class="table-pagination">
+          <div class="pagination-info" id="pagination-info"></div>
+          <div class="pagination-btns" id="pagination-btns"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENDA -->
+    <div class="page" id="page-agenda">
+      <div class="page-header"><div class="page-title">Agenda</div><div class="page-subtitle">Rendez-vous, relances & lancements</div></div>
+      <div class="calendar-wrap">
+        <div class="cal-header">
+          <button class="cal-nav" onclick="calNav(-1)">◀</button>
+          <div class="cal-title" id="cal-title"></div>
+          <button class="cal-nav" onclick="calNav(1)">▶</button>
+          <button class="btn-primary" onclick="addAgendaEvent()" style="margin-left:auto">+ Événement</button>
+        </div>
+        <div class="cal-grid" id="cal-day-headers">
+          <div class="cal-day-header">Lun</div><div class="cal-day-header">Mar</div><div class="cal-day-header">Mer</div>
+          <div class="cal-day-header">Jeu</div><div class="cal-day-header">Ven</div><div class="cal-day-header">Sam</div><div class="cal-day-header">Dim</div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div class="page" id="page-notifications">
+      <div class="page-header"><div class="page-title">Notifications</div><div class="page-subtitle">Alertes et rappels automatiques</div></div>
+      <div id="notif-page-list"></div>
+    </div>
+
+    <!-- STATS -->
+    <div class="page" id="page-stats">
+      <div class="page-header"><div class="page-title">Statistiques</div><div class="page-subtitle">Analyse du déploiement</div></div>
+      <div class="stats-grid" id="stats-page-grid"></div>
+      <div class="stats-charts-grid" style="margin-top:20px">
+        <div class="chart-card-lg"><div class="chart-title">Répartition des statuts</div><div class="chart-wrap-lg"><canvas id="chart-statuts-full"></canvas></div></div>
+        <div class="chart-card-lg"><div class="chart-title">Progression des étapes</div><div class="chart-wrap-lg"><canvas id="chart-etapes-full"></canvas></div></div>
+        <div class="chart-card-lg" style="grid-column:1/-1"><div class="chart-title">Taux d'avancement global</div><div class="chart-wrap-lg"><canvas id="chart-avancement"></canvas></div></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="page-header"><div class="page-title">Paramètres</div><div class="page-subtitle">Gestion des utilisateurs et configuration</div></div>
+      <div class="settings-grid">
+        <div class="settings-card">
+          <div class="settings-card-title">👥 Utilisateurs</div>
+          <div id="users-list"></div>
+          <button class="btn-primary" style="margin-top:16px" onclick="addUser()">+ Ajouter un utilisateur</button>
+        </div>
+        <div class="settings-card">
+          <div class="settings-card-title">⚙️ Configuration</div>
+          <div class="form-group" style="margin-bottom:12px"><label class="form-label">Département actif</label><input class="form-input" value="Puy-de-Dôme (63)" readonly></div>
+          <div class="form-group" style="margin-bottom:16px"><label class="form-label">Alerte inactivité (jours)</label><input class="form-input" type="number" value="30" id="inactivity-days"></div>
+          <button class="btn-primary" onclick="exportData()">📤 Exporter toutes les données (JSON)</button>
+          <button class="btn-secondary" style="margin-top:8px" onclick="importData()">📥 Importer des données</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- FICHE COMMUNE -->
+<div class="modal-overlay" id="commune-modal" onclick="handleModalClick(event)">
+  <div class="modal-panel" id="modal-panel">
+    <div class="modal-header">
+      <div><div class="modal-commune-name" id="modal-commune-name"></div><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px" id="modal-badges"></div></div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- STATUS MENU -->
+<div class="status-menu" id="status-menu" style="display:none"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+// CONSTANTES
+// ══════════════════════════════════════════════════
+
+const COMMUNES_63 = ["Aigueperse","Aix-la-Fayette","Ambert","Antoingt","Anzat-le-Luguet","Apchat","Arconsat","Ardes","Arlanc","Ars-les-Favets","Artonne","Aubiat","Aubière","Aubusson-d'Auvergne","Augerolles","Augnat","Aulhat-Flat","Aulnat","Aurières","Authezat","Auzat-la-Combelle","Auzelles","Avèze","Ayat-sur-Sioule","Aydat","Baffie","Bagnols","Bansat","Bas-et-Lezat","Beaulieu","Beaumont","Beaumont-lès-Randan","Beauregard-Vendon","Beauregard-l'Évêque","Bergonne","Bertignat","Besse-et-Saint-Anastaise","Beurières","Billom","Biollet","Blanzat","Blot-l'Église","Bongheat","Bort-l'Étang","Boudes","Bourg-Lastic","Bouzel","Brassac-les-Mines","Brenat","Briffons","Bromont-Lamothe","Brousse","Bulhon","Bussières","Bussières-et-Pruns","Busséol","Buxières-sous-Montaigut","Ceilloux","Celles-sur-Durolle","Ceyrat","Ceyssat","Chabreloche","Chadeleuf","Chalus","Chamalières","Chambaron sur Morge","Chambon-sur-Dolore","Chambon-sur-Lac","Champagnat-le-Jeune","Champeix","Champs","Champétières","Chanat-la-Mouteyre","Chanonat","Chapdes-Beaufort","Chappes","Chaptuzat","Charbonnier-les-Mines","Charbonnières-les-Varennes","Charbonnières-les-Vieilles","Charensat","Charnat","Chas","Chassagne","Chastreix","Chaumont-le-Bourg","Chauriat","Chavaroux","Château-sur-Cher","Châteaugay","Châteauneuf-les-Bains","Châtel-Guyon","Châteldon","Cisternes-la-Forêt","Clerlande","Clermont-Ferrand","Clémensat","Collanges","Combrailles","Combronde","Compains","Condat-en-Combraille","Condat-lès-Montboissier","Corent","Coudes","Courgoul","Cournols","Cournon-d'Auvergne","Courpière","Crevant-Laveine","Cros","Culhat","Cunlhat","Cébazat","Dauzat-sur-Vodable","Davayat","Domaize","Doranges","Dorat","Dore-l'Église","Durmignat","Durtol","Effiat","Ennezat","Entraigues","Enval","Escoutoux","Espinasse","Espinchal","Espirat","Estandeuil","Esteil","Fayet-Ronaye","Fayet-le-Château","Fernoël","Fournols","Gelles","Gerzat","Giat","Gignat","Gimeaux","Glaine-Montaigut","Gouttières","Grandeyrolles","Grandrif","Grandval","Herment","Heume-l'Église","Isserteaux","Issoire","Job","Joze","Jozerand","Jumeaux","La Bourboule","La Celle","La Cellette","La Chapelle-Agnon","La Chapelle-Marcousse","La Chapelle-sur-Usson","La Chaulme","La Crouzille","La Forie","La Godivelle","La Goutelle","La Monnerie-le-Montel","La Renaudie","La Roche-Blanche","La Roche-Noire","La Sauvetat","La Tour-d'Auvergne","Labessette","Lachaux","Lamontgie","Landogne","Lapeyrouse","Laps","Laqueuille","Larodde","Lastic","Le Breuil-sur-Couze","Le Broc","Le Brugeron","Le Cendre","Le Cheix-sur-Morge","Le Crest","Le Monestier","Le Quartier","Le Vernet-Chaméane","Le Vernet-Sainte-Marguerite","Lempdes","Lempty","Les Ancizes-Comps","Les Deux-Rives","Les Martres-d'Artière","Les Martres-de-Veyre","Les Pradeaux","Lezoux","Limons","Lisseuil","Loubeyrat","Ludesse","Lussat","Luzillat","Madriat","Malauzat","Malintrat","Manglieu","Manzat","Marat","Marcillat","Mareugheol","Maringues","Marsac-en-Livradois","Marsat","Martres-sur-Morge","Mauzun","Mayres","Mazaye","Mazoires","Medeyrolles","Meilhaud","Menat","Messeix","Mirefleurs","Miremont","Moissat","Mons","Mont-Dore","Montaigut-en-Combraille","Montaigut-le-Blanc","Montcel","Montel-de-Gelat","Montfermy","Montmorin","Montpensier","Montpeyroux","Moriat","Moureuille","Mozac","Mur-sur-Allier","Murat-le-Quaire","Murol","Ménétrol","Neschers","Neuf-Église","Neuville","Noalhat","Nohanent","Nonette-Orsonnette","Novacelles","Nébouzat","Néronde-sur-Dore","Olby","Olliergues","Olloix","Olmet","Orbeil","Orcet","Orcines","Orcival","Orléat","Palladuc","Pardines","Parent","Parentignat","Paslières","Perpezat","Perrier","Peschadoires","Peslières","Pessat-Villeneuve","Picherande","Pignols","Pionsat","Plauzat","Pont-du-Château","Pontaumur","Pontgibaud","Pouzol","Prompsat","Prondines","Pulvérières","Puy-Guillaume","Puy-Saint-Gulmier","Pérignat-lès-Sarliève","Pérignat-sur-Allier","Queuille","Randan","Ravel","Reignat","Rentières","Riom","Ris","Roche-Charles-la-Mayrand","Roche-d'Agoux","Rochefort-Montagne","Romagnat","Royat","Saillant","Saint-Agoulin","Saint-Alyre-d'Arlanc","Saint-Alyre-ès-Montagne","Saint-Amant-Roche-Savine","Saint-Amant-Tallende","Saint-André-le-Coq","Saint-Angel","Saint-Anthème","Saint-Avit","Saint-Babel","Saint-Beauzire","Saint-Bonnet-le-Bourg","Saint-Bonnet-le-Chastel","Saint-Bonnet-lès-Allier","Saint-Bonnet-près-Orcival","Saint-Bonnet-près-Riom","Saint-Clément-de-Régnat","Saint-Clément-de-Valorgue","Saint-Denis-Combarnazat","Saint-Dier-d'Auvergne","Saint-Diéry","Saint-Donat","Saint-Ferréol-des-Côtes","Saint-Floret","Saint-Flour-l'Étang","Saint-Gal-sur-Sioule","Saint-Genès-Champanelle","Saint-Genès-Champespe","Saint-Genès-du-Retz","Saint-Genès-la-Tourette","Saint-Georges-de-Mons","Saint-Georges-sur-Allier","Saint-Germain-Lembron","Saint-Germain-l'Herm","Saint-Germain-près-Herment","Saint-Gervais-d'Auvergne","Saint-Gervais-sous-Meymont","Saint-Gervazy","Saint-Hilaire","Saint-Hilaire-la-Croix","Saint-Hilaire-les-Monges","Saint-Hérent","Saint-Ignat","Saint-Jacques-d'Ambur","Saint-Jean-Saint-Gervais","Saint-Jean-d'Heurs","Saint-Jean-des-Ollières","Saint-Jean-en-Val","Saint-Julien-Puy-Lavèze","Saint-Julien-de-Coppel","Saint-Julien-la-Geneste","Saint-Just","Saint-Laure","Saint-Maigner","Saint-Martin-d'Ollières","Saint-Martin-des-Olmes","Saint-Martin-des-Plains","Saint-Maurice","Saint-Maurice-près-Pionsat","Saint-Myon","Saint-Nectaire","Saint-Ours","Saint-Pardoux","Saint-Pierre-Colamine","Saint-Pierre-Roche","Saint-Pierre-la-Bourlhonne","Saint-Pierre-le-Chastel","Saint-Priest-Bramefant","Saint-Priest-des-Champs","Saint-Quentin-sur-Sauxillanges","Saint-Quintin-sur-Sioule","Saint-Romain","Saint-Rémy-de-Blot","Saint-Rémy-de-Chargnat","Saint-Rémy-sur-Durolle","Saint-Sandoux","Saint-Saturnin","Saint-Sauves-d'Auvergne","Saint-Sauveur-la-Sagne","Saint-Sulpice","Saint-Sylvestre-Pragoulin","Saint-Victor-Montvianeix","Saint-Victor-la-Rivière","Saint-Vincent","Saint-Yvoine","Saint-Éloy-la-Glacière","Saint-Éloy-les-Mines","Saint-Étienne-des-Champs","Saint-Étienne-sur-Usson","Sainte-Agathe","Sainte-Catherine","Sainte-Christine","Sallèdes","Sardon","Saulzet-le-Froid","Sauret-Besserve","Saurier","Sauvagnat","Sauvagnat-Sainte-Marthe","Sauvessanges","Sauviat","Sauxillanges","Savennes","Sayat","Sermentizon","Servant","Seychalles","Singles","Solignat","Sugères","Surat","Tallende","Tauves","Teilhet","Teilhède","Ternant-les-Eaux","Thiers","Thiolières","Thuret","Tortebesse","Tours-sur-Meymont","Tourzel-Ronzières","Tralaigues","Trémouille-Saint-Loup","Trézioux","Usson","Valbeleix","Valcivières","Valz-sous-Châteauneuf","Varennes-sur-Morge","Varennes-sur-Usson","Vassel","Vensat","Vergheas","Verneugheol","Vernines","Verrières","Vertaizon","Vertolaye","Veyre-Monton","Vic-le-Comte","Vichel","Villeneuve","Villeneuve-les-Cerfs","Villossanges","Vinzelles","Virlet","Viscomtat","Vitrac","Viverols","Vodable","Voingt","Vollore-Montagne","Vollore-Ville","Volvic","Youx","Yronde-et-Buron","Yssac-la-Tourette","Échandelys","Égliseneuve-d'Entraigues","Égliseneuve-des-Liards","Égliseneuve-près-Billom","Églisolles"];
+
+const STATUTS = ["À contacter","Mail envoyé","Relance 1","Relance 2","Rendez-vous programmé","En attente","Refus","Convention signée"];
+const STATUT_CLASSES = {"À contacter":"s-contacter","Mail envoyé":"s-mail","Relance 1":"s-relance1","Relance 2":"s-relance2","Rendez-vous programmé":"s-rdv","En attente":"s-attente","Refus":"s-refus","Convention signée":"s-convention"};
+const STATUT_COLORS = {"À contacter":"#999","Mail envoyé":"#1565C0","Relance 1":"#F9A825","Relance 2":"#F77F00","Rendez-vous programmé":"#8E44AD","En attente":"#E63946","Refus":"#c62828","Convention signée":"#6FBE3F"};
+const ETAPES = ["","Présentation","Commune intéressée","Convention signée","Lancement programmé","Réunion habitants","Heure Civique lancée","Suivi programmé","Suivi effectué"];
+const ETAPE_CLASSES = {"Présentation":"e-presentation","Commune intéressée":"e-interessee","Convention signée":"e-convention","Lancement programmé":"e-lancement","Réunion habitants":"e-reunion","Heure Civique lancée":"e-lancee","Suivi programmé":"e-suivi-prog","Suivi effectué":"e-suivi-ok"};
+const ETAPE_COLORS = {"Présentation":"#1565C0","Commune intéressée":"#2E7D32","Convention signée":"#388E3C","Lancement programmé":"#F57F17","Réunion habitants":"#4A148C","Heure Civique lancée":"#1B5E20","Suivi programmé":"#0D47A1","Suivi effectué":"#33691E"};
+const MAP_COLORS = {"À contacter":"#CCCCCC","Mail envoyé":"#1565C0","Relance 1":"#F9A825","Relance 2":"#F77F00","Rendez-vous programmé":"#8E44AD","En attente":"#E63946","Refus":"#c62828","Convention signée":"#6FBE3F"};
+
+const USERS_DEFAULT = [
+  {id:1,username:"admin",password:"admin123",name:"Admin",role:"Administrateur"},
+  {id:2,username:"marie",password:"marie2024",name:"Marie Dupont",role:"Chargée de mission"}
+];
+
+// ══════════════════════════════════════════════════
+// ÉTAT
+// ══════════════════════════════════════════════════
+
+let currentUser = null;
+let communes = [];
+let sortField = "nom", sortAsc = true;
+let currentPage = 1;
+const PAGE_SIZE = 30;
+let filteredCommunes = [];
+let calYear, calMonth;
+let leafletMap = null, geojsonLayer = null;
+let charts = {};
+let statusMenuTarget = null, statusMenuField = null;
+let currentModalCommune = null;
+
+// ══════════════════════════════════════════════════
+// AUTH — robuste, sans dépendance localStorage pour les users par défaut
+// ══════════════════════════════════════════════════
+
+function getUsers() {
+  try {
+    const stored = localStorage.getItem("hc_users");
+    if (!stored) return JSON.parse(JSON.stringify(USERS_DEFAULT));
+    const users = JSON.parse(stored);
+    if (!Array.isArray(users) || !users.length || !users[0].password) {
+      localStorage.removeItem("hc_users");
+      return JSON.parse(JSON.stringify(USERS_DEFAULT));
+    }
+    // Garantir que l'admin existe toujours
+    if (!users.find(u => u.username === "admin")) users.unshift(USERS_DEFAULT[0]);
+    return users;
+  } catch(e) {
+    localStorage.removeItem("hc_users");
+    return JSON.parse(JSON.stringify(USERS_DEFAULT));
+  }
+}
+
+function doLogin() {
+  const u = document.getElementById("login-user").value.trim();
+  const p = document.getElementById("login-pass").value.trim();
+  const err = document.getElementById("login-error");
+  if (!u || !p) { err.textContent = "Veuillez remplir les deux champs."; return; }
+  const users = getUsers();
+  const user = users.find(x => x.username === u && x.password === p);
+  if (user) {
+    currentUser = user;
+    try { sessionStorage.setItem("hc_session", JSON.stringify(user)); } catch(e) {}
+    logConnection(user.name);
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    err.textContent = "";
+    initApp();
+  } else {
+    err.textContent = "Identifiant ou mot de passe incorrect.";
+    document.getElementById("login-pass").value = "";
+    document.getElementById("login-pass").focus();
+  }
+}
+
+function resetAuth() {
+  localStorage.removeItem("hc_users");
+  sessionStorage.removeItem("hc_session");
+  document.getElementById("login-user").value = "";
+  document.getElementById("login-pass").value = "";
+  document.getElementById("login-error").textContent = "Accès réinitialisé. Utilisez : admin / admin123";
+  document.getElementById("login-user").focus();
+}
+
+function doLogout() {
+  try { sessionStorage.removeItem("hc_session"); } catch(e) {}
+  currentUser = null;
+  document.getElementById("app").style.display = "none";
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("login-user").value = "";
+  document.getElementById("login-pass").value = "";
+  document.getElementById("login-error").textContent = "";
+}
+
+function logConnection(name) {
+  try {
+    const logs = JSON.parse(localStorage.getItem("hc_conn_logs") || "[]");
+    logs.unshift({user:name, time:new Date().toISOString()});
+    localStorage.setItem("hc_conn_logs", JSON.stringify(logs.slice(0,100)));
+  } catch(e) {}
+}
+
+// Entrée clavier sur les champs de login
+document.getElementById("login-pass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+document.getElementById("login-user").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("login-pass").focus(); });
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+
+function makeCommune(nom) {
+  return {
+    nom, statut:"À contacter", etape:"",
+    referent:"", contact_nom:"", contact_fonction:"",
+    contact_tel:"", contact_email:"",
+    dernier_echange:"", prochaine_relance:"",
+    commentaires:"", notes:"",
+    dept_presence_rdv:"", cp_type:"", cp_date:"", dept_presence_cp:"",
+    history:[], agenda:[]
+  };
+}
+
+function saveCommunes() { try { localStorage.setItem("hc_communes", JSON.stringify(communes)); } catch(e) {} }
+
+function initApp() {
+  try {
+    const stored = localStorage.getItem("hc_communes");
+    if (stored) {
+      communes = JSON.parse(stored);
+      COMMUNES_63.forEach(nom => { if (!communes.find(c => c.nom === nom)) communes.push(makeCommune(nom)); });
+    } else {
+      communes = COMMUNES_63.map(nom => makeCommune(nom));
+    }
+  } catch(e) { communes = COMMUNES_63.map(nom => makeCommune(nom)); }
+  saveCommunes();
+
+  document.getElementById("user-name-display").textContent = currentUser.name;
+  document.getElementById("user-role-display").textContent = currentUser.role;
+  document.getElementById("user-avatar").textContent = currentUser.name[0].toUpperCase();
+  document.getElementById("topbar-date").textContent = new Date().toLocaleDateString("fr-FR", {weekday:"long",day:"numeric",month:"long"});
+
+  calYear = new Date().getFullYear();
+  calMonth = new Date().getMonth();
+
+  renderDashboard();
+  renderUsers();
+  computeNotifications();
+
+  document.addEventListener("click", e => {
+    if (!e.target.closest(".topbar-search")) document.getElementById("search-results").style.display = "none";
+    if (!e.target.closest(".notif-btn") && !e.target.closest("#notif-panel")) document.getElementById("notif-panel").classList.remove("open");
+    if (!e.target.closest("#status-menu")) document.getElementById("status-menu").style.display = "none";
+  });
+}
+
+// ══════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════
+
+function showPage(page) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("page-"+page).classList.add("active");
+  document.getElementById("nav-"+page).classList.add("active");
+  document.getElementById("notif-panel").classList.remove("open");
+  if (page==="communes") renderTable();
+  if (page==="dashboard") renderDashboard();
+  if (page==="map") { renderMapStats(); initMap(); }
+  if (page==="agenda") renderCalendar();
+  if (page==="notifications") renderNotifPage();
+  if (page==="stats") renderStatsPage();
+  if (page==="settings") renderUsers();
+}
+
+// ══════════════════════════════════════════════════
+// STATS
+// ══════════════════════════════════════════════════
+
+function getStats() {
+  const total = communes.length;
+  const contactees = communes.filter(c => c.statut !== "À contacter").length;
+  const rdv = communes.filter(c => c.statut === "Rendez-vous programmé").length;
+  const interessees = communes.filter(c => ["Commune intéressée","Convention signée","Lancement programmé","Réunion habitants","Heure Civique lancée","Suivi programmé","Suivi effectué"].includes(c.etape)).length;
+  const conventions = communes.filter(c => c.statut === "Convention signée").length;
+  const lancees = communes.filter(c => c.etape === "Heure Civique lancée").length;
+  const suivis = communes.filter(c => c.etape === "Suivi effectué").length;
+  return {total,contactees,rdv,interessees,conventions,lancees,suivis,avancement:Math.round(lancees/total*100)};
+}
+
+function renderDashboard() {
+  const s = getStats();
+  document.getElementById("stats-grid").innerHTML = `
+    <div class="stat-card"><div class="stat-label">Communes totales</div><div class="stat-value">${s.total}</div><div class="stat-sub">Puy-de-Dôme</div></div>
+    <div class="stat-card"><div class="stat-label">Contactées</div><div class="stat-value" style="color:var(--cyan)">${s.contactees}</div><div class="stat-sub">${Math.round(s.contactees/s.total*100)}% du total</div><div class="stat-bar"><div class="stat-bar-fill" style="width:${s.contactees/s.total*100}%"></div></div></div>
+    <div class="stat-card"><div class="stat-label">RDV programmés</div><div class="stat-value" style="color:var(--violet)">${s.rdv}</div></div>
+    <div class="stat-card"><div class="stat-label">Conventions signées</div><div class="stat-value" style="color:var(--green)">${s.conventions}</div><div class="stat-sub">${s.lancees} communes lancées</div><div class="stat-bar"><div class="stat-bar-fill" style="width:${s.conventions/s.total*100}%;background:var(--green)"></div></div></div>
+  `;
+  renderCharts();
+}
+
+function renderCharts() {
+  const sc = {};
+  STATUTS.forEach(s => sc[s] = communes.filter(c => c.statut===s).length);
+  const ctx1 = document.getElementById("chart-statuts");
+  if (charts.statuts) charts.statuts.destroy();
+  charts.statuts = new Chart(ctx1, {type:"doughnut",data:{labels:STATUTS,datasets:[{data:STATUTS.map(s=>sc[s]),backgroundColor:STATUTS.map(s=>STATUT_COLORS[s]),borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"right",labels:{font:{family:"Montserrat",size:11},padding:10}}}}});
+  const ec = {};
+  ETAPES.filter(e=>e).forEach(e => ec[e] = communes.filter(c=>c.etape===e).length);
+  const ctx2 = document.getElementById("chart-etapes");
+  if (charts.etapes) charts.etapes.destroy();
+  charts.etapes = new Chart(ctx2, {type:"bar",data:{labels:ETAPES.filter(e=>e),datasets:[{data:ETAPES.filter(e=>e).map(e=>ec[e]),backgroundColor:ETAPES.filter(e=>e).map(e=>ETAPE_COLORS[e]||"#00AEEF"),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{family:"Montserrat",size:10},maxRotation:30}},y:{beginAtZero:true}}}});
+}
+
+// ══════════════════════════════════════════════════
+// TABLE
+// ══════════════════════════════════════════════════
+
+function filterTable() {
+  const q = document.getElementById("crm-search").value.toLowerCase();
+  const fs = document.getElementById("filter-statut").value;
+  const fe = document.getElementById("filter-etape").value;
+  filteredCommunes = communes.filter(c =>
+    (!q || [c.nom,c.contact_nom,c.contact_email,c.referent,c.commentaires].some(v=>(v||"").toLowerCase().includes(q))) &&
+    (!fs || c.statut===fs) && (!fe || c.etape===fe)
+  );
+  sortFilteredCommunes();
+  currentPage = 1;
+  renderTableBody();
+}
+
+function sortTable(field) {
+  if (sortField===field) sortAsc=!sortAsc; else { sortField=field; sortAsc=true; }
+  sortFilteredCommunes();
+  renderTableBody();
+}
+
+function sortFilteredCommunes() {
+  filteredCommunes.sort((a,b) => {
+    const va=a[sortField]||"", vb=b[sortField]||"";
+    return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+}
+
+function renderTable() {
+  filteredCommunes = [...communes];
+  sortFilteredCommunes();
+  renderTableBody();
+}
+
+function renderTableBody() {
+  const slice = filteredCommunes.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+  document.getElementById("crm-tbody").innerHTML = slice.map(c => `
+    <tr onclick="openCommune('${esc(c.nom)}')">
+      <td class="fw">${c.nom}</td>
+      <td>${c.contact_nom||"<span style='color:var(--gray-200)'>—</span>"}</td>
+      <td class="muted">${c.contact_fonction||""}</td>
+      <td class="muted">${c.contact_tel||""}</td>
+      <td onclick="event.stopPropagation();openStatusMenu(event,'${esc(c.nom)}','statut')">
+        <span class="badge ${STATUT_CLASSES[c.statut]||"s-contacter"}"><span class="badge-dot"></span>${c.statut}</span>
+      </td>
+      <td onclick="event.stopPropagation();openStatusMenu(event,'${esc(c.nom)}','etape')">
+        ${c.etape?`<span class="badge ${ETAPE_CLASSES[c.etape]||""}">${c.etape}</span>`:"<span style='color:var(--gray-200)'>—</span>"}
+      </td>
+      <td class="muted">${c.referent||""}</td>
+      <td class="muted">${c.dernier_echange?fmtDate(c.dernier_echange):""}</td>
+      <td style="${isOverdue(c.prochaine_relance)?"color:var(--coral);font-weight:600":""}">${c.prochaine_relance?fmtDate(c.prochaine_relance):""}</td>
+    </tr>
+  `).join("");
+  renderPagination();
+}
+
+function renderPagination() {
+  const total=filteredCommunes.length, pages=Math.ceil(total/PAGE_SIZE);
+  document.getElementById("pagination-info").textContent=`${Math.min((currentPage-1)*PAGE_SIZE+1,total)}–${Math.min(currentPage*PAGE_SIZE,total)} sur ${total} communes`;
+  let html=`<button class="page-btn" onclick="gotoPage(${currentPage-1})" ${currentPage<=1?"disabled":""}>‹</button>`;
+  const s=Math.max(1,currentPage-2), e=Math.min(pages,currentPage+2);
+  if(s>1) html+=`<button class="page-btn" onclick="gotoPage(1)">1</button>${s>2?"<span style='padding:0 4px;color:var(--gray-400)'>…</span>":""}`;
+  for(let i=s;i<=e;i++) html+=`<button class="page-btn ${i===currentPage?"active":""}" onclick="gotoPage(${i})">${i}</button>`;
+  if(e<pages) html+=`${e<pages-1?"<span style='padding:0 4px;color:var(--gray-400)'>…</span>":""}<button class="page-btn" onclick="gotoPage(${pages})">${pages}</button>`;
+  html+=`<button class="page-btn" onclick="gotoPage(${currentPage+1})" ${currentPage>=pages?"disabled":""}>›</button>`;
+  document.getElementById("pagination-btns").innerHTML=html;
+}
+
+function gotoPage(p) {
+  const pages=Math.ceil(filteredCommunes.length/PAGE_SIZE);
+  if(p<1||p>pages) return;
+  currentPage=p; renderTableBody();
+}
+
+// ══════════════════════════════════════════════════
+// STATUS MENU
+// ══════════════════════════════════════════════════
+
+function openStatusMenu(e, nom, field) {
+  e.preventDefault();
+  statusMenuTarget=nom; statusMenuField=field;
+  const menu=document.getElementById("status-menu");
+  const items=field==="statut"?STATUTS:ETAPES.filter(x=>x);
+  menu.innerHTML=`<div style="padding:8px 14px 6px;font-size:10px;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.08em">${field==="statut"?"Statut de contact":"Étape du lancement"}</div>`+
+    items.map(s=>`<div class="status-menu-item" onclick="applyStatus('${esc(s)}')"><span class="badge ${field==="statut"?(STATUT_CLASSES[s]||""):(ETAPE_CLASSES[s]||"")}" style="font-size:11px">${s}</span></div>`).join("");
+  menu.style.display="block";
+  let x=e.clientX, y=e.clientY;
+  if(x+220>window.innerWidth) x=window.innerWidth-225;
+  menu.style.left=x+"px"; menu.style.top=y+"px";
+}
+
+function applyStatus(val) {
+  const c=communes.find(x=>x.nom===statusMenuTarget);
+  if(!c) return;
+  const old=c[statusMenuField];
+  c[statusMenuField]=val;
+  addHistory(c,`${statusMenuField==="statut"?"Statut":"Étape"} : "${old||"—"}" → "${val}"`);
+  saveCommunes();
+  document.getElementById("status-menu").style.display="none";
+  renderTableBody(); updateMapLayer(); computeNotifications();
+  toast("Mis à jour ✓","success");
+}
+
+// ══════════════════════════════════════════════════
+// MODAL FICHE COMMUNE
+// ══════════════════════════════════════════════════
+
+function badgesHTML(c) {
+  return `
+    <span class="badge ${STATUT_CLASSES[c.statut]||"s-contacter"}" style="margin-right:4px"><span class="badge-dot"></span>${c.statut}</span>
+    ${c.etape?`<span class="badge ${ETAPE_CLASSES[c.etape]||""}" style="margin-right:4px">${c.etape}</span>`:""}
+    ${c.dept_presence_rdv?`<span class="badge" style="background:#EEF2FF;color:#3730A3;margin-right:4px">🏛️ RDV Dpt : ${c.dept_presence_rdv==="oui"?"✅":c.dept_presence_rdv==="non"?"❌":"⏳"} ${c.dept_presence_rdv}</span>`:"" }
+    ${c.cp_type?`<span class="badge" style="background:#F0FDF4;color:#166534">${c.cp_type==="cp_mds"?"🏢 CP Maison des Solidarités":"🏛️ CP Commune"}</span>`:""}
+  `;
+}
+
+function openCommune(nom) {
+  const c=communes.find(x=>x.nom===nom);
+  if(!c) return;
+  currentModalCommune=nom;
+  document.getElementById("modal-commune-name").textContent=nom;
+  document.getElementById("modal-badges").innerHTML=badgesHTML(c);
+  document.getElementById("modal-body").innerHTML=buildModalBody(c);
+  document.getElementById("commune-modal").classList.add("open");
+  document.querySelectorAll("#modal-body input,#modal-body select,#modal-body textarea").forEach(el => {
+    el.addEventListener("change",()=>saveModalField(el));
+  });
+}
+
+function buildModalBody(c) {
+  const sel=(field,opts)=>opts.map(o=>`<option value="${o.v}" ${c[field]===o.v?"selected":""}>${o.l}</option>`).join("");
+  return `
+    <div class="modal-section">
+      <div class="modal-section-title">Statut & Suivi</div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">État de la prise de contact</label>
+          <select class="form-select" data-field="statut">${STATUTS.map(s=>`<option value="${s}" ${c.statut===s?"selected":""}>${s}</option>`).join("")}</select></div>
+        <div class="form-group"><label class="form-label">Étape du lancement</label>
+          <select class="form-select" data-field="etape"><option value="">—</option>${ETAPES.filter(e=>e).map(e=>`<option value="${e}" ${c.etape===e?"selected":""}>${e}</option>`).join("")}</select></div>
+        <div class="form-group"><label class="form-label">Référent Heure Civique</label>
+          <input class="form-input" data-field="referent" value="${c.referent||""}" placeholder="Nom du référent HC"></div>
+        <div class="form-group"><label class="form-label">Date dernier échange</label>
+          <input class="form-input" type="date" data-field="dernier_echange" value="${c.dernier_echange||""}"></div>
+        <div class="form-group"><label class="form-label">Prochaine relance</label>
+          <input class="form-input" type="date" data-field="prochaine_relance" value="${c.prochaine_relance||""}"></div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Présence du Département</div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Présence au RDV de présentation</label>
+          <select class="form-select" data-field="dept_presence_rdv">
+            <option value="" ${!c.dept_presence_rdv?"selected":""}>— Non renseigné</option>
+            <option value="oui" ${c.dept_presence_rdv==="oui"?"selected":""}>✅ Présent</option>
+            <option value="non" ${c.dept_presence_rdv==="non"?"selected":""}>❌ Absent</option>
+            <option value="à confirmer" ${c.dept_presence_rdv==="à confirmer"?"selected":""}>⏳ À confirmer</option>
+          </select></div>
+        <div class="form-group"><label class="form-label">Type de conférence de presse</label>
+          <select class="form-select" data-field="cp_type">
+            <option value="" ${!c.cp_type?"selected":""}>— Aucune CP prévue</option>
+            <option value="cp_mds" ${c.cp_type==="cp_mds"?"selected":""}>🏢 CP · Maison des Solidarités</option>
+            <option value="cp_commune" ${c.cp_type==="cp_commune"?"selected":""}>🏛️ CP · Commune</option>
+          </select></div>
+        <div class="form-group"><label class="form-label">Date de la conférence de presse</label>
+          <input class="form-input" type="date" data-field="cp_date" value="${c.cp_date||""}"></div>
+        <div class="form-group"><label class="form-label">Présence politique Département à la CP</label>
+          <select class="form-select" data-field="dept_presence_cp">
+            <option value="" ${!c.dept_presence_cp?"selected":""}>— Non renseigné</option>
+            <option value="oui" ${c.dept_presence_cp==="oui"?"selected":""}>✅ Présent</option>
+            <option value="non" ${c.dept_presence_cp==="non"?"selected":""}>❌ Absent</option>
+            <option value="à confirmer" ${c.dept_presence_cp==="à confirmer"?"selected":""}>⏳ À confirmer</option>
+          </select></div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Contact principal</div>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Nom</label><input class="form-input" data-field="contact_nom" value="${c.contact_nom||""}" placeholder="Nom et prénom"></div>
+        <div class="form-group"><label class="form-label">Fonction</label><input class="form-input" data-field="contact_fonction" value="${c.contact_fonction||""}" placeholder="Maire, DGS…"></div>
+        <div class="form-group"><label class="form-label">Téléphone</label><input class="form-input" data-field="contact_tel" value="${c.contact_tel||""}" placeholder="06…"></div>
+        <div class="form-group"><label class="form-label">Adresse e-mail</label><input class="form-input" type="email" data-field="contact_email" value="${c.contact_email||""}" placeholder="mairie@…"></div>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Commentaires & Notes</div>
+      <div class="form-group full" style="margin-bottom:12px"><label class="form-label">Commentaires</label>
+        <textarea class="form-textarea" data-field="commentaires" placeholder="Compte-rendu d'échanges…">${c.commentaires||""}</textarea></div>
+      <div class="form-group full"><label class="form-label">Notes internes</label>
+        <textarea class="form-textarea" data-field="notes" placeholder="Notes confidentielles…">${c.notes||""}</textarea></div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Agenda</div>
+      <div id="modal-agenda">${renderModalAgenda(c)}</div>
+      <button class="btn-secondary" style="margin-top:12px" onclick="addModalAgenda()">+ Ajouter un événement</button>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Historique des modifications</div>
+      <div id="modal-history">${renderHistory(c)}</div>
+    </div>
+  `;
+}
+
+function saveModalField(el) {
+  const c=communes.find(x=>x.nom===currentModalCommune);
+  if(!c) return;
+  const field=el.dataset.field, oldVal=c[field], newVal=el.value;
+  if(oldVal===newVal) return;
+  c[field]=newVal;
+  addHistory(c,`${fieldLabel(field)} : "${oldVal||"—"}" → "${newVal||"—"}"`);
+  saveCommunes();
+  document.getElementById("modal-badges").innerHTML=badgesHTML(c);
+  document.getElementById("modal-history").innerHTML=renderHistory(c);
+  updateMapLayer(); computeNotifications();
+  toast("Sauvegardé ✓","success");
+}
+
+function fieldLabel(f) {
+  return {"statut":"Statut","etape":"Étape","referent":"Référent HC","contact_nom":"Contact","contact_fonction":"Fonction","contact_tel":"Téléphone","contact_email":"Email","dernier_echange":"Dernier échange","prochaine_relance":"Prochaine relance","commentaires":"Commentaires","notes":"Notes","dept_presence_rdv":"Présence Dpt (RDV)","cp_type":"Type CP","cp_date":"Date CP","dept_presence_cp":"Présence politique Dpt (CP)"}[f]||f;
+}
+
+function addHistory(c, text) {
+  if(!c.history) c.history=[];
+  c.history.unshift({time:new Date().toISOString(),user:currentUser?currentUser.name:"Système",text});
+}
+
+function renderHistory(c) {
+  if(!c.history||!c.history.length) return "<div style='color:var(--gray-400);font-size:13px'>Aucune modification enregistrée.</div>";
+  return c.history.slice(0,30).map(h=>`
+    <div class="history-item">
+      <div class="history-dot"></div>
+      <div><div class="history-text">${h.text}</div>
+        <div style="display:flex;gap:8px;margin-top:2px"><span class="history-time">${fmtDateTime(h.time)}</span><span class="history-user">${h.user}</span></div>
+      </div>
+    </div>`).join("");
+}
+
+function renderModalAgenda(c) {
+  if(!c.agenda||!c.agenda.length) return "<div style='color:var(--gray-400);font-size:13px'>Aucun événement planifié.</div>";
+  return c.agenda.map((ev,i)=>`
+    <div class="history-item">
+      <div class="history-dot" style="background:${ev.type==="rdv"?"var(--violet)":ev.type==="lancement"?"var(--green)":"var(--yellow)}"></div>
+      <div style="flex:1"><div class="history-text">${ev.titre}</div>
+        <div style="display:flex;gap:8px;margin-top:2px"><span class="history-time">${fmtDate(ev.date)}</span>
+          <span class="badge ${ev.type==="rdv"?"s-rdv":ev.type==="lancement"?"s-convention":"s-mail"}" style="font-size:10px;padding:1px 6px">${ev.type}</span></div>
+      </div>
+      <button onclick="removeAgendaEvent('${esc(c.nom)}',  ${i})" style="background:none;border:none;color:var(--gray-400);cursor:pointer">✕</button>
+    </div>`).join("");
+}
+
+function addModalAgenda() {
+  const titre=prompt("Titre de l'événement :"); if(!titre) return;
+  const date=prompt("Date (AAAA-MM-JJ) :",new Date().toISOString().split("T")[0]); if(!date) return;
+  const type=prompt("Type (rdv / relance / lancement) :","rdv");
+  const c=communes.find(x=>x.nom===currentModalCommune); if(!c) return;
+  if(!c.agenda) c.agenda=[];
+  c.agenda.push({titre,date,type:type||"rdv"});
+  addHistory(c,`Agenda : "${titre}" le ${fmtDate(date)}`);
+  saveCommunes();
+  document.getElementById("modal-agenda").innerHTML=renderModalAgenda(c);
+  toast("Événement ajouté ✓","success");
+}
+
+function removeAgendaEvent(nom,idx) {
+  const c=communes.find(x=>x.nom===nom); if(!c||!c.agenda) return;
+  c.agenda.splice(idx,1); saveCommunes();
+  document.getElementById("modal-agenda").innerHTML=renderModalAgenda(c);
+}
+
+function closeModal() {
+  document.getElementById("commune-modal").classList.remove("open");
+  currentModalCommune=null;
+  renderTableBody(); renderDashboard();
+}
+
+function handleModalClick(e) { if(e.target===document.getElementById("commune-modal")) closeModal(); }
+
+// ══════════════════════════════════════════════════
+// CARTE
+// ══════════════════════════════════════════════════
+
+function renderMapStats() {
+  const s=getStats();
+  document.getElementById("map-stats-grid").innerHTML=`
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${s.total}</div></div>
+    <div class="stat-card"><div class="stat-label">Contactées</div><div class="stat-value" style="color:var(--cyan)">${s.contactees}</div></div>
+    <div class="stat-card"><div class="stat-label">RDV</div><div class="stat-value" style="color:var(--violet)">${s.rdv}</div></div>
+    <div class="stat-card"><div class="stat-label">Conventions</div><div class="stat-value" style="color:var(--green)">${s.conventions}</div></div>
+    <div class="stat-card"><div class="stat-label">Lancées</div><div class="stat-value" style="color:var(--green)">${s.lancees}</div></div>
+    <div class="stat-card"><div class="stat-label">Avancement</div><div class="stat-value">${s.avancement}%</div></div>
+  `;
+  document.getElementById("map-legend").innerHTML=Object.entries(MAP_COLORS).map(([l,c])=>`<div class="legend-item"><div class="legend-dot" style="background:${c}"></div>${l}</div>`).join("");
+}
+
+function normName(s) { return s?(s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim()):""; }
+
+function initMap() {
+  if(!leafletMap) {
+    leafletMap=L.map("map-container").setView([45.75,3.08],9);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap contributors",maxZoom:18}).addTo(leafletMap);
+  }
+  fetch("https://geo.api.gouv.fr/departements/63/communes?fields=nom,code,contour&format=geojson&geometry=contour")
+    .then(r=>r.json()).then(data=>{
+      if(geojsonLayer) leafletMap.removeLayer(geojsonLayer);
+      geojsonLayer=L.geoJSON(data,{
+        style:feat=>{ const c=communes.find(x=>normName(x.nom)===normName(feat.properties.nom)); return {fillColor:MAP_COLORS[c?c.statut:"À contacter"]||"#CCC",weight:1,color:"#fff",fillOpacity:.75}; },
+        onEachFeature:(feat,layer)=>{
+          const nom=feat.properties.nom;
+          layer.bindTooltip(()=>{ const c=communes.find(x=>normName(x.nom)===normName(nom)); return `<b>${nom}</b><br>Statut : ${c?c.statut:"À contacter"}<br>Étape : ${c&&c.etape?c.etape:"—"}<br>Référent : ${c&&c.referent?c.referent:"—"}`; },{sticky:true});
+          layer.on("click",()=>{ const c=communes.find(x=>normName(x.nom)===normName(nom)); if(c) openCommune(c.nom); });
+          layer.on("mouseover",e=>{ e.target.setStyle({weight:2,fillOpacity:.9}); });
+          layer.on("mouseout",e=>{ geojsonLayer.resetStyle(e.target); });
+        }
+      }).addTo(leafletMap);
+    }).catch(()=>{
+      document.getElementById("map-container").innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;background:white;border-radius:12px;flex-direction:column;gap:12px;color:var(--gray-400)"><div style="font-size:48px">🗺️</div><div style="font-size:14px;font-weight:600">Carte non disponible hors ligne</div></div>`;
+    });
+}
+
+function updateMapLayer() {
+  if(!geojsonLayer) return;
+  geojsonLayer.setStyle(feat=>{ const c=communes.find(x=>normName(x.nom)===normName(feat.properties.nom)); return {fillColor:MAP_COLORS[c?c.statut:"À contacter"]||"#CCC",weight:1,color:"#fff",fillOpacity:.75}; });
+}
+
+function mapSearch(q) {
+  if(!q||!geojsonLayer||!leafletMap) return;
+  geojsonLayer.eachLayer(layer=>{
+    if(normName(layer.feature.properties.nom).includes(normName(q))) {
+      leafletMap.fitBounds(layer.getBounds());
+      layer.setStyle({weight:3,color:"#00AEEF",fillOpacity:.9});
+      setTimeout(()=>geojsonLayer.resetStyle(layer),3000);
+    }
+  });
+}
+
+function updateMapFilter() {
+  const fs=document.getElementById("map-filter-statut").value;
+  if(!geojsonLayer) return;
+  geojsonLayer.setStyle(feat=>{
+    const c=communes.find(x=>normName(x.nom)===normName(feat.properties.nom));
+    const st=c?c.statut:"À contacter";
+    if(fs&&st!==fs) return {fillColor:"#eee",weight:.5,color:"#ccc",fillOpacity:.3};
+    return {fillColor:MAP_COLORS[st]||"#CCC",weight:1,color:"#fff",fillOpacity:.75};
+  });
+}
+
+// ══════════════════════════════════════════════════
+// AGENDA
+// ══════════════════════════════════════════════════
+
+function renderCalendar() {
+  const months=["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  document.getElementById("cal-title").textContent=`${months[calMonth]} ${calYear}`;
+  const grid=document.getElementById("cal-grid"); grid.innerHTML="";
+  const today=new Date();
+  let startDay=new Date(calYear,calMonth,1).getDay()-1; if(startDay<0) startDay=6;
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const daysInPrev=new Date(calYear,calMonth,0).getDate();
+  const allEvents=getAllAgendaEvents();
+  for(let i=0;i<42;i++) {
+    let day,month=calMonth,year=calYear,other=false;
+    if(i<startDay){ day=daysInPrev-startDay+i+1; month=calMonth-1; year=calYear; if(month<0){month=11;year--;} other=true; }
+    else if(i>=startDay+daysInMonth){ day=i-startDay-daysInMonth+1; month=calMonth+1; year=calYear; if(month>11){month=0;year++;} other=true; }
+    else{ day=i-startDay+1; }
+    const dateStr=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    const isToday=day===today.getDate()&&month===today.getMonth()&&year===today.getFullYear()&&!other;
+    const dayEvents=allEvents.filter(e=>e.date===dateStr);
+    const div=document.createElement("div");
+    div.className=`cal-day${other?" other-month":""}${isToday?" today":""}`;
+    div.innerHTML=`<div class="cal-day-num">${day}</div>`+
+      dayEvents.slice(0,3).map(e=>`<div class="cal-event ${e.type}" onclick="event.stopPropagation();openCommune('${esc(e.commune)}')">${e.titre} · ${e.commune}</div>`).join("")+
+      (dayEvents.length>3?`<div style="font-size:10px;color:var(--gray-400)">+${dayEvents.length-3}</div>`:"");
+    grid.appendChild(div);
+  }
+}
+
+function getAllAgendaEvents() {
+  const events=[];
+  communes.forEach(c=>{
+    if(c.prochaine_relance) events.push({date:c.prochaine_relance,titre:"Relance",commune:c.nom,type:"relance"});
+    (c.agenda||[]).forEach(ev=>events.push({...ev,commune:c.nom}));
+  });
+  return events;
+}
+
+function calNav(dir){ calMonth+=dir; if(calMonth<0){calMonth=11;calYear--;}if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
+
+function addAgendaEvent() {
+  const commune=prompt("Commune (laisser vide pour agenda global) :");
+  const titre=prompt("Titre :"); if(!titre) return;
+  const date=prompt("Date (AAAA-MM-JJ) :",new Date().toISOString().split("T")[0]); if(!date) return;
+  const type=prompt("Type (rdv / relance / lancement) :","rdv");
+  if(commune) {
+    const c=communes.find(x=>normName(x.nom)===normName(commune));
+    if(c){ if(!c.agenda) c.agenda=[]; c.agenda.push({titre,date,type:type||"rdv"}); addHistory(c,`Agenda : "${titre}" le ${fmtDate(date)}`); saveCommunes(); }
+  }
+  renderCalendar(); toast("Événement ajouté ✓","success");
+}
+
+// ══════════════════════════════════════════════════
+// NOTIFICATIONS
+// ══════════════════════════════════════════════════
+
+function computeNotifications() {
+  const today=new Date(); today.setHours(0,0,0,0);
+  const tomorrow=new Date(today); tomorrow.setDate(today.getDate()+1);
+  const notifs=[];
+  communes.forEach(c=>{
+    if(c.prochaine_relance) {
+      const d=new Date(c.prochaine_relance); d.setHours(0,0,0,0);
+      if(d.getTime()===today.getTime()) notifs.push({type:"urgent",icon:"🔴",title:"Relance aujourd'hui",desc:c.nom,commune:c.nom});
+      else if(d.getTime()===tomorrow.getTime()) notifs.push({type:"warning",icon:"🟡",title:"Relance demain",desc:c.nom,commune:c.nom});
+      else if(d<today) notifs.push({type:"urgent",icon:"⚠️",title:"Relance en retard",desc:`${c.nom} · ${fmtDate(c.prochaine_relance)}`,commune:c.nom});
+    }
+    if(c.dernier_echange&&!["À contacter","Refus","Convention signée"].includes(c.statut)) {
+      const diff=(today-new Date(c.dernier_echange))/86400000;
+      if(diff>30) notifs.push({type:"info",icon:"💤",title:`Sans nouvelles depuis ${Math.round(diff)}j`,desc:c.nom,commune:c.nom});
+    }
+    (c.agenda||[]).forEach(ev=>{
+      if(ev.type==="rdv"){ const d=new Date(ev.date); d.setHours(0,0,0,0); if(d.getTime()===tomorrow.getTime()) notifs.push({type:"info",icon:"📅",title:`RDV demain : ${ev.titre}`,desc:c.nom,commune:c.nom}); }
+    });
+  });
+  const count=notifs.filter(n=>n.type==="urgent").length;
+  const nb=document.getElementById("notif-count");
+  nb.textContent=notifs.length; nb.style.display=notifs.length?"inline":"none";
+  document.getElementById("notif-dot").style.display=count>0?"block":"none";
+  document.getElementById("notif-list").innerHTML=notifs.length?
+    notifs.map(n=>`<div class="notif-item notif-${n.type}" onclick="openCommune('${esc(n.commune)}')"><div class="notif-icon">${n.icon}</div><div><div class="notif-title">${n.title}</div><div class="notif-desc">${n.desc}</div></div></div>`).join(""):
+    "<div style='padding:20px;text-align:center;color:var(--gray-400);font-size:13px'>Aucune notification ✓</div>";
+  return notifs;
+}
+
+function toggleNotifPanel(){ document.getElementById("notif-panel").classList.toggle("open"); }
+
+function renderNotifPage() {
+  const notifs=computeNotifications();
+  document.getElementById("notif-page-list").innerHTML=notifs.length?
+    notifs.map(n=>`<div style="background:white;border-radius:12px;padding:16px 20px;margin-bottom:10px;box-shadow:var(--shadow);border:1px solid var(--gray-100);display:flex;align-items:center;gap:14px;cursor:pointer" onclick="openCommune('${esc(n.commune)}')"><div style="font-size:24px">${n.icon}</div><div><div style="font-size:14px;font-weight:700">${n.title}</div><div style="font-size:12px;color:var(--gray-400);margin-top:2px">${n.desc}</div></div></div>`).join(""):
+    "<div style='background:white;border-radius:12px;padding:40px;text-align:center;color:var(--gray-400);font-size:14px;box-shadow:var(--shadow)'>✅ Aucune notification en attente</div>";
+}
+
+// ══════════════════════════════════════════════════
+// STATISTIQUES
+// ══════════════════════════════════════════════════
+
+function renderStatsPage() {
+  const s=getStats();
+  document.getElementById("stats-page-grid").innerHTML=`
+    <div class="stat-card"><div class="stat-label">Total communes</div><div class="stat-value">${s.total}</div></div>
+    <div class="stat-card"><div class="stat-label">Contactées</div><div class="stat-value" style="color:var(--cyan)">${s.contactees}</div><div class="stat-sub">${Math.round(s.contactees/s.total*100)}%</div></div>
+    <div class="stat-card"><div class="stat-label">Lancées</div><div class="stat-value" style="color:var(--green)">${s.lancees}</div></div>
+    <div class="stat-card"><div class="stat-label">Avancement</div><div class="stat-value">${s.avancement}%</div></div>
+  `;
+  const sc={};STATUTS.forEach(s2=>sc[s2]=communes.filter(c=>c.statut===s2).length);
+  const ctx1=document.getElementById("chart-statuts-full");
+  if(charts.statutsFull) charts.statutsFull.destroy();
+  charts.statutsFull=new Chart(ctx1,{type:"bar",data:{labels:STATUTS,datasets:[{data:STATUTS.map(s2=>sc[s2]),backgroundColor:STATUTS.map(s2=>STATUT_COLORS[s2]),borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{family:"Montserrat",size:10},maxRotation:30}},y:{beginAtZero:true}}}});
+  const ec={};ETAPES.filter(e=>e).forEach(e=>ec[e]=communes.filter(c=>c.etape===e).length);
+  const ctx2=document.getElementById("chart-etapes-full");
+  if(charts.etapesFull) charts.etapesFull.destroy();
+  charts.etapesFull=new Chart(ctx2,{type:"bar",data:{labels:ETAPES.filter(e=>e),datasets:[{data:ETAPES.filter(e=>e).map(e=>ec[e]),backgroundColor:ETAPES.filter(e=>e).map(e=>ETAPE_COLORS[e]||"#00AEEF"),borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{family:"Montserrat",size:10},maxRotation:30}},y:{beginAtZero:true}}}});
+  const ctx3=document.getElementById("chart-avancement");
+  if(charts.avancement) charts.avancement.destroy();
+  charts.avancement=new Chart(ctx3,{type:"bar",data:{labels:["À contacter","Contactées","Intéressées","Conventions","Lancées","Suivis"],datasets:[{label:"Communes",data:[communes.filter(c=>c.statut==="À contacter").length,s.contactees,s.interessees,s.conventions,s.lancees,s.suivis],backgroundColor:["#CCC","#00AEEF","#6FBE3F","#2E7D32","#1B5E20","#F9A825"],borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:"y",plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,max:463},y:{ticks:{font:{family:"Montserrat",size:11}}}}}});
+}
+
+// ══════════════════════════════════════════════════
+// RECHERCHE GLOBALE
+// ══════════════════════════════════════════════════
+
+function globalSearch(q) {
+  const results=document.getElementById("search-results");
+  if(!q||q.length<2){ results.style.display="none"; return; }
+  const qn=q.toLowerCase();
+  const found=communes.filter(c=>[c.nom,c.contact_nom,c.contact_email,c.contact_tel,c.referent,c.commentaires].some(v=>(v||"").toLowerCase().includes(qn))).slice(0,8);
+  if(!found.length){ results.style.display="none"; return; }
+  results.innerHTML=found.map(c=>`<div class="search-result-item" onclick="openCommune('${esc(c.nom)}');document.getElementById('search-results').style.display='none';document.getElementById('global-search').value=''">
+    <div class="sr-name">${c.nom}</div>
+    <div class="sr-detail">${c.contact_nom?c.contact_nom+" · ":""} <span class="badge ${STATUT_CLASSES[c.statut]||"s-contacter"}" style="font-size:10px;padding:1px 6px">${c.statut}</span></div>
+  </div>`).join("");
+  results.style.display="block";
+}
+
+// ══════════════════════════════════════════════════
+// PARAMÈTRES
+// ══════════════════════════════════════════════════
+
+function renderUsers() {
+  const users=getUsers();
+  document.getElementById("users-list").innerHTML=users.map(u=>`
+    <div class="user-item">
+      <div class="user-avatar" style="width:36px;height:36px;font-size:14px">${u.name[0]}</div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:600">${u.name}</div><div style="font-size:12px;color:var(--gray-400)">${u.role} · @${u.username}</div></div>
+      ${u.id!==1?`<button onclick="deleteUser(${u.id})" style="background:none;border:none;color:var(--gray-400);cursor:pointer">✕</button>`:""}
+    </div>`).join("");
+}
+
+function addUser() {
+  const name=prompt("Nom complet :"); if(!name) return;
+  const username=prompt("Identifiant :"); if(!username) return;
+  const password=prompt("Mot de passe :"); if(!password) return;
+  const role=prompt("Rôle :","Chargé(e) de mission");
+  const users=getUsers();
+  if(users.find(u=>u.username===username)){ toast("Identifiant déjà utilisé","error"); return; }
+  users.push({id:Date.now(),username,password,name,role:role||"Chargé(e) de mission"});
+  localStorage.setItem("hc_users",JSON.stringify(users));
+  renderUsers(); toast("Utilisateur créé ✓","success");
+}
+
+function deleteUser(id) {
+  if(!confirm("Supprimer cet utilisateur ?")) return;
+  const users=getUsers().filter(u=>u.id!==id);
+  localStorage.setItem("hc_users",JSON.stringify(users));
+  renderUsers();
+}
+
+function exportData() {
+  const blob=new Blob([JSON.stringify({communes,exportDate:new Date().toISOString(),version:"1.1"},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`heure-civique-crm-${new Date().toISOString().split("T")[0]}.json`; a.click();
+  toast("Export téléchargé ✓","success");
+}
+
+function importData() {
+  const input=document.createElement("input"); input.type="file"; input.accept=".json";
+  input.onchange=e=>{
+    const r=new FileReader();
+    r.onload=ev=>{
+      try {
+        const data=JSON.parse(ev.target.result);
+        if(data.communes){ communes=data.communes; saveCommunes(); renderDashboard(); toast(`${communes.length} communes importées ✓`,"success"); }
+      } catch{ toast("Fichier invalide","error"); }
+    };
+    r.readAsText(e.target.files[0]);
+  };
+  input.click();
+}
+
+function exportCSV() {
+  const header=["Commune","Contact","Fonction","Téléphone","Email","Statut","Étape","Référent HC","Dernier échange","Prochaine relance","Présence Dpt RDV","Type CP","Date CP","Présence Dpt CP","Commentaires"];
+  const rows=filteredCommunes.map(c=>[c.nom,c.contact_nom,c.contact_fonction,c.contact_tel,c.contact_email,c.statut,c.etape,c.referent,c.dernier_echange,c.prochaine_relance,c.dept_presence_rdv||"",c.cp_type||"",c.cp_date||"",c.dept_presence_cp||"",c.commentaires].map(v=>`"${(v||"").replace(/"/g,'""')}"` ));
+  const csv=[header,...rows].map(r=>r.join(",")).join("\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`communes-63-${new Date().toISOString().split("T")[0]}.csv`; a.click();
+  toast("CSV exporté ✓","success");
+}
+
+// ══════════════════════════════════════════════════
+// UTILITAIRES
+// ══════════════════════════════════════════════════
+
+function fmtDate(s) { if(!s) return ""; return new Date(s).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"}); }
+function fmtDateTime(s) { if(!s) return ""; return new Date(s).toLocaleDateString("fr-FR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}); }
+function isOverdue(d) { return d && new Date(d)<new Date(); }
+function esc(s) { return (s||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
+
+function toast(msg,type="") {
+  const el=document.getElementById("toast");
+  el.textContent=msg; el.className=`toast show${type?" toast-"+type:""}`;
+  setTimeout(()=>el.classList.remove("show"),2500);
+}
+
+// ══════════════════════════════════════════════════
+// DÉMARRAGE
+// ══════════════════════════════════════════════════
+
+window.addEventListener("load", () => {
+  // Vider les champs login (empêche l'autocomplétion du navigateur)
+  document.getElementById("login-user").value = "";
+  document.getElementById("login-pass").value = "";
+
+  // Restaurer session si existante
+  try {
+    const session=sessionStorage.getItem("hc_session");
+    if(session) {
+      const user=JSON.parse(session);
+      // Vérifier que l'utilisateur existe toujours et que son mot de passe est valide
+      const users=getUsers();
+      const valid=users.find(u=>u.username===user.username&&u.password===user.password);
+      if(valid) {
+        currentUser=valid;
+        document.getElementById("login-screen").style.display="none";
+        document.getElementById("app").style.display="block";
+        initApp();
+        return;
+      }
+    }
+  } catch(e) {}
+  // Afficher l'écran de connexion
+  document.getElementById("login-screen").style.display="flex";
+});
+</script>
+</body>
+</html>
