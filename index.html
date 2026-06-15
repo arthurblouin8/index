@@ -1239,29 +1239,11 @@ function toast(msg,type="") {
 // ══════════════════════════════════════════════════
 
 window.addEventListener("load", () => {
-  // Vider les champs login (empêche l'autocomplétion du navigateur)
-  document.getElementById("login-user").value = "";
-  document.getElementById("login-pass").value = "";
-
-  // Restaurer session si existante
-  try {
-    const session=sessionStorage.getItem("hc_session");
-    if(session) {
-      const user=JSON.parse(session);
-      // Vérifier que l'utilisateur existe toujours et que son mot de passe est valide
-      const users=getUsers();
-      const valid=users.find(u=>u.username===user.username&&u.password===user.password);
-      if(valid) {
-        currentUser=valid;
-        document.getElementById("login-screen").style.display="none";
-        document.getElementById("app").style.display="block";
-        initApp();
-        return;
-      }
-    }
-  } catch(e) {}
-  // Afficher l'écran de connexion
-  document.getElementById("login-screen").style.display="flex";
+  // Connexion automatique sans écran de login
+  currentUser = {id:1, username:"admin", password:"admin123", name:"Admin", role:"Administrateur"};
+  document.getElementById("login-screen").style.display="none";
+  document.getElementById("app").style.display="block";
+  initApp();
 });
 </script>
 </body>
